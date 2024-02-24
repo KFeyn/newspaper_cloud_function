@@ -1,0 +1,4 @@
+requests==2.31.0
+bs4==0.0.2
+pysocks==1.7.1
+emoji==2.10.1
