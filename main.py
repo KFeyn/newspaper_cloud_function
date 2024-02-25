@@ -15,7 +15,7 @@ YESTERDAY = datetime.date.today() - datetime.timedelta(days=1)
 channels = ['gopractice', 'productgames', 'vladimir_merkushev', 'hardclient', 'eto_analytica', 'ba_and_sa',
             'whoisdutytoday', 'aioftheday', 'artificial_stupid', 'chartomojka', 'ProductAnalytics', 'ruspm',
             'renat_alimbekov', 'product_science', 'productanalyticsfordummies', 'revealthedata', 'PMlifestyle',
-            'exp_fest']
+            'exp_fest', 'data_publication', 'thisisdata', 'cryptovalerii']
 
 
 def send_to_channel(message: str, date: datetime.date) -> None:
@@ -35,7 +35,7 @@ def send_to_channel(message: str, date: datetime.date) -> None:
     if response.status_code == 200:
         logger.info(f'Message for {date} sent successfully')
     else:
-        logger.info(f'Telegram sending returned code {response.status_code} and error:\n {response.text}')
+        logger.error(f'Telegram sending returned code {response.status_code} and error:\n {response.text}')
 
 
 def parse_channel(channel: str, date: datetime.date) -> str:
@@ -68,7 +68,7 @@ def parse_channel(channel: str, date: datetime.date) -> str:
                 pass
         logger.info(f'We successfully parsed channnel {channel} and got {len(channel_texts)} posts')
     else:
-        logger.info(f'Channel {channel} returned code {result.status_code} and error:\n {result.text}')
+        logger.error(f'Channel {channel} returned code {result.status_code} and error:\n {result.text}')
 
     answer_text = '' if len(channel_texts) == 0 else f'*{channel_name}*\n' + '\n'.join(channel_texts) + '\n\n'
     return re.sub(r'(?![\n])\s{2,}', ' ', answer_text)
@@ -117,7 +117,7 @@ def make_short_finals(text: str) -> str:
         answer = response.json()['choices'][0]['message']['content']
         logger.info('Summarizing done successfully')
     else:
-        logger.info(f'OpenAI returned code {response.status_code} and error:\n {response.text}')
+        logger.error(f'OpenAI returned code {response.status_code} and error:\n {response.text}')
         answer = None
     return answer
 
@@ -170,7 +170,7 @@ def ya_gpt(text: str) -> str:
         answer = response.json()['result']['alternatives'][0]['message']['text']
         logger.info('Summarizing done successfully')
     else:
-        logger.info(f'YaGPT returned code {response.status_code} and error:\n {response.text}')
+        logger.error(f'YaGPT returned code {response.status_code} and error:\n {response.text}')
         answer = None
     return answer
 
@@ -190,7 +190,7 @@ def habr_top() -> str:
 
         logger.info(f'We got {cnt} links from habr')
     else:
-        logger.info(f'Habr returned code {response.status_code} and error:\n {response.text}')
+        logger.error(f'Habr returned code {response.status_code} and error:\n {response.text}')
 
     return article_texts
 
@@ -225,7 +225,7 @@ def tds_top(date: datetime.date) -> str:
 
         logger.info(f'We got {cnt} links from tds')
     else:
-        logger.info(f'TDS returned code {response.status_code} and error:\n {response.text}')
+        logger.error(f'TDS returned code {response.status_code} and error:\n {response.text}')
 
     return article_texts
 
