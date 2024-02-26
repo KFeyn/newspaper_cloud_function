@@ -93,11 +93,12 @@ def make_short_finals(text: str) -> str:
     - Выжимка из сообщения. Ссылка на сообщение
     - Выжимка из сообщения. Ссылка на сообщение
     
-    Выбери 5 самых релевантных для продуктового аналитика, отранжируй их по релевантности и выведи их в формате:
+    Выбери 5 самых релевантных для продуктового аналитика, отранжируй их по релевантности с точки зрения скиллов 
+    (python, SQL, знание продукта, теория вероятности, machine learning, A/B тесты, эксперименты) и выведи их в формате:
     1) Выжимка из сообщения. Ссылка на сообщение
     2) Выжимка из сообщения. Ссылка на сообщение
     
-    Удали пусые строчки и не давай никаких других комменариев, выведи только сообщения. 
+    Удали пустые строчки и не давай никаких других комментариев, выведи только сообщения, без группировки по каналам.
     Список сообщений:\n {str(text)}"""
 
     payload = {
@@ -177,20 +178,30 @@ def ya_gpt(text: str) -> str:
 
 def habr_top() -> str:
     article_texts = '*Хабр*\n'
-    response = requests.get('https://habr.com/ru/articles/top/daily/')
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, 'html.parser')
-        articles = soup.find_all('h2', {'class': 'tm-title tm-title_h2'})
-        cnt = 0
-        for article in articles:
-            name = article.find('span').text
-            link = 'https://habr.com' + article.find('a')['href']
-            article_texts += f'- {name} [ссылка]({link})\n'
-            cnt += 1
+    article_set = set()
+    hub_list = ['machine_learning', 'productpm', 'mobileanalytics', 'python', 'research', 'maths', 'sql', 'bigdata',
+                'opendata', 'natural_language_processing', 'data_visualization', 'data_engineering', 'data_mining']
 
-        logger.info(f'We got {cnt} links from habr')
-    else:
-        logger.error(f'Habr returned code {response.status_code} and error:\n {response.text}')
+    for hub in hub_list:
+        response = requests.get(f'https://habr.com/ru/hubs/{hub}/articles/top/daily/')
+        if response.status_code == 200:
+            hub_cnt = 0
+            soup = BeautifulSoup(response.text, 'html.parser')
+            articles = soup.find_all('h2', {'class': 'tm-title tm-title_h2'})
+
+            for article in articles:
+                hub_cnt += 1
+                name = article.find('span').text
+                link = 'https://habr.com' + article.find('a')['href']
+                article_set.add(f'- {name} [ссылка]({link})')
+
+            logger.info(f'We got {hub_cnt} links from hub {hub}')
+
+        else:
+            logger.error(f'Habr hub {hub} returned code {response.status_code} and error:\n {response.text}')
+
+    article_texts += '\n'.join(article_set)
+    logger.info(f'We got {len(article_set)} links from habr')
 
     return article_texts
 
