@@ -56,46 +56,7 @@ def send_to_channel(message: str, date: datetime.date) -> None:
     logger.info(f'Message for {date} sent successfully')
 
 
-# TODO: check if meme
-def parse_channel(channel: str, date: datetime.date) -> str:
-    channel_texts = []
-
-    result = make_request(url=f'https://t.me/s/{channel}')
-    if result:
-        soup = BeautifulSoup(result.text.replace('<br/>', '\n').replace('<br>', '\n'), 'html.parser')
-        data = soup.find_all('div', {'class': 'tgme_widget_message_bubble'})[::-1]
-        channel_name = soup.find('title').text.split('–')[0]
-        for article in data:
-            article_dt_html = article.find('a', {'class': 'tgme_widget_message_date'})
-            article_dt = datetime.datetime.strptime(article_dt_html.time['datetime'][:10], '%Y-%m-%d').date()
-            link = article_dt_html['href']
-            if article_dt < date:
-                break
-            elif article_dt == date:
-                article_html = article.find('div', {'class': 'tgme_widget_message_text js-message_text'})
-                if article_html and 'erid' not in article_html.text.lower() and not \
-                        re.search('реклама.*ооо', article_html.text.lower()):
-                    article_name = article_html.get_text(separator=' ').split('\n')[0].replace('*', '')
-                    channel_texts.append('- ' + article_name + f' [ссылка]({link})')
-                elif article_html and 'erid' in article_html.text.lower() and \
-                        re.search('реклама.*ооо', article_html.text.lower()):
-                    pass
-                elif article.find('div', {'class': 'message_media_not_supported_wrap'}) \
-                        and len(list(article.children)) == 9:
-                    channel_texts.append('- ' + 'Лонгрид' + f' [ссылка]({link})')
-                else:
-                    pass
-            else:
-                pass
-        logger.info(f'We successfully parsed channnel {channel} and got {len(channel_texts)} posts')
-
-        answer_text = '' if len(channel_texts) == 0 else f'*{channel_name}*\n' + '\n'.join(channel_texts) + '\n\n'
-        return re.sub(r'(?![\n])\s{2,}', ' ', answer_text)
-    else:
-        return ''
-
-
-def make_short_finals(prompt: str) -> str:
+def ask_chatgpt(prompt: str) -> str:
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {os.getenv('OPENAI_TOKEN')}"
@@ -122,6 +83,64 @@ def make_short_finals(prompt: str) -> str:
         logger.info('Prompt done successfully')
 
         return answer
+    else:
+        return ''
+
+
+def check_if_useful(text: str, link: str) -> tp.Optional[str]:
+    if len(text) > 300:
+        return '- ' + text.split('\n')[0].replace('*', '') + f' [ссылка]({link})'
+
+    prompt = f"""
+    У меня есть текст коротких сообщений из телеграм каналов. Мне надо оставить только полезные, то есть те, 
+    где содержатся новости, названия статей, ссылки на статьи или другая релевантная информация. Мемы, описание видео, 
+    опросы и служебные сообщения каналов  - бесполезные. В сообщения только текст, медиафайлов нет. Если сообщение 
+    полезное -  напиши ок, если нет - напиши мусор.
+    
+    Вот пример сообщения:
+    {text}
+    """
+    answer = ask_chatgpt(prompt).lower()
+    if answer == 'ок':
+        return '- ' + text.split('\n')[0].replace('*', '') + f' [ссылка]({link})'
+    else:
+        return None
+
+
+def parse_channel(channel: str, date: datetime.date) -> str:
+    channel_texts = []
+
+    result = make_request(url=f'https://t.me/s/{channel}')
+    if result:
+        soup = BeautifulSoup(result.text.replace('<br/>', '\n').replace('<br>', '\n'), 'html.parser')
+        data = soup.find_all('div', {'class': 'tgme_widget_message_bubble'})[::-1]
+        channel_name = soup.find('title').text.split('–')[0]
+        for article in data:
+            article_dt_html = article.find('a', {'class': 'tgme_widget_message_date'})
+            article_dt = datetime.datetime.strptime(article_dt_html.time['datetime'][:10], '%Y-%m-%d').date()
+            link = article_dt_html['href']
+            if article_dt < date:
+                break
+            elif article_dt == date:
+                article_html = article.find('div', {'class': 'tgme_widget_message_text js-message_text'})
+                if article_html and 'erid' not in article_html.text.lower() and not \
+                        re.search('реклама.*ооо', article_html.text.lower()):
+                    article_name = check_if_useful(article_html.get_text(separator=' '), link)
+                    channel_texts.append(article_name) if article_name else None
+                elif article_html and 'erid' in article_html.text.lower() and \
+                        re.search('реклама.*ооо', article_html.text.lower()):
+                    pass
+                elif article.find('div', {'class': 'message_media_not_supported_wrap'}) \
+                        and len(list(article.children)) == 9:
+                    channel_texts.append('- ' + 'Лонгрид' + f' [ссылка]({link})')
+                else:
+                    pass
+            else:
+                pass
+        logger.info(f'We successfully parsed channnel {channel} and got {len(channel_texts)} posts')
+
+        answer_text = '' if len(channel_texts) == 0 else f'*{channel_name}*\n' + '\n'.join(channel_texts) + '\n\n'
+        return re.sub(r'(?![\n])\s{2,}', ' ', answer_text)
     else:
         return ''
 
@@ -196,7 +215,7 @@ text_from_channels = ''
 for channel in channels:
     text_from_channels += parse_channel(channel, YESTERDAY)
 text_from_channels += habr_top() + '\n\n' + tds_top(YESTERDAY) + '\n\n'
-prompt = f"""У меня есть список сообщений вида:  
+prompt = f"""У меня есть список сообщений вида:
 Название канала
 - Выжимка из сообщения. Ссылка на сообщение
 - Выжимка из сообщения. Ссылка на сообщение
@@ -205,7 +224,7 @@ prompt = f"""У меня есть список сообщений вида:
 - Выжимка из сообщения. Ссылка на сообщение
 - Выжимка из сообщения. Ссылка на сообщение
 
-Выбери 5 самых релевантных для продуктового аналитика, отранжируй их по релевантности с точки зрения скиллов 
+Выбери 5 самых релевантных для продуктового аналитика, отранжируй их по релевантности с точки зрения скиллов
 (python, SQL, знание продукта, теория вероятности, machine learning, A/B тесты, эксперименты) и выведи их в формате:
 1) Выжимка из сообщения. Ссылка на сообщение
 2) Выжимка из сообщения. Ссылка на сообщение
@@ -214,6 +233,6 @@ prompt = f"""У меня есть список сообщений вида:
 названий каналов.
 Список сообщений:\n {str(text_from_channels)}"""
 
-text_recommended = make_short_finals(prompt)
+text_recommended = ask_chatgpt(prompt)
 final_text = '*Топ 5 релевантных:*\n' + text_recommended + '\n\n\n' + text_from_channels
 send_to_channel(final_text, YESTERDAY)
