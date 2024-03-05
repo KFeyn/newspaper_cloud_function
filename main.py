@@ -44,7 +44,7 @@ def send_to_channel(message: str, date: datetime.date) -> None:
     chat_id = '-1002043722333'
 
     date = date.strftime('%Y-%m-%d')
-    message += f'\n\n {date}'
+    message += f'\n\n\n {date}'
     params = {
         'chat_id': chat_id,
         'text': message,
@@ -54,6 +54,24 @@ def send_to_channel(message: str, date: datetime.date) -> None:
     url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
     make_request(request_type='post', url=url, params=params)
     logger.info(f'Message for {date} sent successfully')
+
+
+def send_pack(message: str, date: datetime.date) -> None:
+    if len(message) < 4096:
+        send_to_channel(message, date)
+        return None
+
+    splitted = message.split('\n')
+    current_chunk = ''
+
+    for el in splitted:
+        if len(current_chunk) + len(el) + 1 < 4096:
+            current_chunk += '\n' + el
+        else:
+            send_to_channel(current_chunk, date)
+            current_chunk = el
+
+    send_to_channel(current_chunk, date)
 
 
 def ask_chatgpt(prompt: str) -> str:
@@ -235,4 +253,4 @@ prompt = f"""У меня есть список сообщений вида:
 
 text_recommended = ask_chatgpt(prompt)
 final_text = '*Топ 5 релевантных:*\n' + text_recommended + '\n\n\n' + text_from_channels
-send_to_channel(final_text, YESTERDAY)
+send_pack(final_text, YESTERDAY)
