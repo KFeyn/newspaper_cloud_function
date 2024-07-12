@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 YESTERDAY = datetime.date.today() - datetime.timedelta(days=1)
 channels = ['gopractice', 'productgames', 'vladimir_merkushev', 'hardclient', 'eto_analytica', 'ba_and_sa',
-            'whoisdutytoday', 'aioftheday', 'artificial_stupid', 'chartomojka', 'ProductAnalytics', 'ruspm',
+            'artificial_stupid', 'chartomojka', 'ProductAnalytics', 'ruspm',
             'renat_alimbekov', 'product_science', 'productanalyticsfordummies', 'revealthedata', 'PMlifestyle',
             'exp_fest', 'data_publication', 'thisisdata', 'cryptovalerii']
 
@@ -112,8 +112,7 @@ def check_if_useful(text: str, link: str) -> tp.Optional[str]:
     prompt = f"""
     У меня есть текст коротких сообщений из телеграм каналов. Мне надо оставить только полезные, то есть те, 
     где содержатся новости, названия статей, ссылки на статьи или другая релевантная информация. Мемы, описание видео, 
-    опросы и служебные сообщения каналов  - бесполезные. В сообщения только текст, медиафайлов нет. Если сообщение 
-    полезное -  напиши ок, если нет - напиши мусор.
+    опросы и служебные сообщения каналов  - бесполезные. Если сообщение полезное -  напиши ок, если нет - напиши мусор.
     
     Вот пример сообщения:
     {text}
@@ -186,7 +185,7 @@ def habr_top() -> str:
     article_texts += '\n'.join(article_set)
     logger.info(f'We got {len(article_set)} links from habr')
 
-    return article_texts
+    return article_texts.replace('*', '')
 
 
 def tds_top(date: datetime.date) -> str:
@@ -224,7 +223,7 @@ def tds_top(date: datetime.date) -> str:
 
         logger.info(f'We got {cnt} links from tds')
 
-        return article_texts
+        return article_texts.replace('*', '')
     else:
         return ''
 
